@@ -1,10 +1,10 @@
 from server.dependencies import get_db,get_current_user
 from server.models.db_model import Ticket,User,Customer
-from server.schemas.ticket_schema import TicketResponse, CreateTicket,TicketDeleteRequest
+from server.schemas.ticket_schema import TicketResponse, CreateTicket,TicketDeleteRequest,AssignTicketRequest
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from fastapi import Depends,HTTPException,APIRouter
-from server.schemas.ticket_summary_schema import EmployeeTicketSummary, SupportTicketSummary,TeamLeadTicketSummary
+# from server.schemas.ticket_summary_schema import EmployeeTicketSummary, SupportTicketSummary,TeamLeadTicketSummary
 from sqlalchemy.sql import func, case
 from server.db_connect.ticket_state import ALLOWED_STATUS_TRANSITIONS
 
@@ -209,3 +209,36 @@ def delete_ticket(ticket_id : int,delete_load: TicketDeleteRequest , db:Session 
         "message": f"Ticket ID {ticket.id} deleted by agent {current_user.name}",
         "reason" : delete_load.reason
     }
+
+
+#unassigned tickets can only be assigned by the team_lead
+
+@router.patch("/{ticket_id}/assign",response_model = TicketResponse)
+def assign_ticket(ticket_id : int,assign_load: AssignTicketRequest,db :Session =Depends(get_db), current_user: User = Depends(get_current_user)):
+
+    if current_user.role!="team_lead":
+        raise HTTPException(status_code = 403,detail = ["Only Team lead can assign the task"])
+
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+
+    if not ticket:
+        raise HTTPException(status_code = 404,detail = ["No ticket was found"])
+    
+    if ticket.status != "open":
+        raise HTTPException(status_code = 400,detail = ["Only OPEN tickets can be assigned"])
+    
+    agent = db.query(User).filter(
+        User.id == assign_load.agent_id,
+        User.role == "support"
+    ).first()
+
+    if not agent:
+        raise HTTPException(status_code = 404,detail = ["Support Agent not found"])
+    
+    ticket.assigned_agent = agent.id
+    ticket.status = "pending"
+
+    db.commit()
+    db.refresh(ticket)
+
+    return ticket

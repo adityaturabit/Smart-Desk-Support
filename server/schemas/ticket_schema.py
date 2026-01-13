@@ -39,3 +39,7 @@ class TicketResponse(TicketBase):
 
 class TicketDeleteRequest(BaseModel):
     reason: Optional[str] = None
+
+
+class AssignTicketRequest(BaseModel):
+    agent_id: int
