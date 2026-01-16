@@ -1,0 +1,1 @@
+REDIS_ROUND_ROBIN_KEY = "round_robin:last_agent_id"

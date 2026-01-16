@@ -31,8 +31,6 @@ class Customer(Base):
 
 # ----- TICKET MODEL
 
-
-
 class Ticket(Base):
     __tablename__ = "tickets"
     id = Column(Integer, autoincrement=True,primary_key=True)

@@ -3,6 +3,7 @@ from server.models.db_model import Ticket,User,Customer
 from server.schemas.ticket_schema import TicketResponse, CreateTicket,TicketDeleteRequest,AssignTicketRequest
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
+from server.algo_services.round_robin import assign_next_agent
 from fastapi import Depends,HTTPException,APIRouter
 # from server.schemas.ticket_summary_schema import EmployeeTicketSummary, SupportTicketSummary,TeamLeadTicketSummary
 from sqlalchemy.sql import func, case
@@ -28,6 +29,39 @@ def get_ticket(db:Session=Depends(get_db),current_user : User = Depends(get_curr
     #for team lead
     return db.query(Ticket).all()
 
+@router.post("/", response_model=TicketResponse)
+def create_ticket(
+    ticket: CreateTicket,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role not in ["employee", "support"]:
+        raise HTTPException(status_code=403, detail="Not allowed")
+
+    assigned_agent_id = None
+    status = "open"
+
+    # 🔁 AUTO-ASSIGN ONLY FOR EMPLOYEE
+    if current_user.role == "employee":
+        assigned_agent_id = assign_next_agent(db)
+        if assigned_agent_id:
+            status = "pending"
+
+    new_ticket = Ticket(
+        title=ticket.title,
+        description=ticket.description,
+        priority=ticket.priority,
+        created_by_user_id=current_user.id,
+        assigned_agent=assigned_agent_id,
+        status=status,
+        customer_id=ticket.customer_id
+    )
+
+    db.add(new_ticket)
+    db.commit()
+    db.refresh(new_ticket)
+
+    return new_ticket
 
 
 @router.post("/",response_model=TicketResponse)
@@ -38,6 +72,14 @@ def create_ticket(
     if current_user.role not in ["employee","support"]:
         raise HTTPException(status_code=404,detail="Not allowed")
     
+    assigned_agent_id = None
+    status = "open"
+
+    if current_user.role == "employee":
+        assigned_agent_id = assign_next_agent(db)
+        if assigned_agent_id:
+            status = "pending"
+
     if current_user.role == "support" and not ticket.customer_id:
         raise HTTPException(status_code=401,detail="Customer required")
     
