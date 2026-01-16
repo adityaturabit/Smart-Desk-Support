@@ -29,41 +29,8 @@ def get_ticket(db:Session=Depends(get_db),current_user : User = Depends(get_curr
     #for team lead
     return db.query(Ticket).all()
 
-@router.post("/", response_model=TicketResponse)
-def create_ticket(
-    ticket: CreateTicket,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    if current_user.role not in ["employee", "support"]:
-        raise HTTPException(status_code=403, detail="Not allowed")
 
-    assigned_agent_id = None
-    status = "open"
-
-    # 🔁 AUTO-ASSIGN ONLY FOR EMPLOYEE
-    if current_user.role == "employee":
-        assigned_agent_id = assign_next_agent(db)
-        if assigned_agent_id:
-            status = "pending"
-
-    new_ticket = Ticket(
-        title=ticket.title,
-        description=ticket.description,
-        priority=ticket.priority,
-        created_by_user_id=current_user.id,
-        assigned_agent=assigned_agent_id,
-        status=status,
-        customer_id=ticket.customer_id
-    )
-
-    db.add(new_ticket)
-    db.commit()
-    db.refresh(new_ticket)
-
-    return new_ticket
-
-
+#will works when an employee creates a ticket cuz it will auto assign the ticket to an agent using round robin algo
 @router.post("/",response_model=TicketResponse)
 def create_ticket(
     ticket : CreateTicket, db: Session = Depends(get_db),current_user : User = Depends(get_current_user)
@@ -88,7 +55,7 @@ def create_ticket(
         description = ticket.description,
         priority = ticket.priority,
         created_by_user_id = current_user.id,
-        assigned_agent = current_user.id if current_user.role == "support" else None,
+        assigned_agent = assigned_agent_id, #current_user.id if current_user.role == "support" else None,
         customer_id = ticket.customer_id
     )
 
