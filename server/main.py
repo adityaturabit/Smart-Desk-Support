@@ -9,12 +9,15 @@ from server.routers import customer_route,ticket_route, analytics_route
 import uuid
 from server.db_connect.redis_conn.redis_client import redis_client
 from server.routers import user_route
+from fastapi.middleware.cors import CORSMiddleware
 
 
 
 
 
 app = FastAPI(title="Smart Support Desk",tags=["WOW"])
+
+app.add_middleware(CORSMiddleware,allow_origins = ["*"],allow_methods = ["*"])
 
 @app.on_event("startup")
 def start_up():

@@ -42,12 +42,14 @@ def get_customers(db:Session=Depends(get_db),current_user : User = Depends(get_c
         raise HTTPException(status_code=403,detail="Only for the Authorized members")
 
     if current_user.role == "support":
-        return (
-            db.query(Customer).filter(Customer.created_by_agent_id == current_user.id).all()
-        )
-    
-    #for team lead
-    return db.query(Customer).all()
+        return db.query(Customer).filter(
+            Customer.created_by_agent_id == current_user.id
+        ).all()
+
+    if current_user.role == "team_lead":
+        return db.query(Customer).all()
+
+    raise HTTPException(status_code=403, detail="Unauthorized")
 
 
 #customer can be updated by thos agent only who created them in the first place

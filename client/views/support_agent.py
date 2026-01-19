@@ -6,8 +6,6 @@ def render():
     st.header("🛠️ Support Agent Dashboard")
 
     tab1, tab2 = st.tabs(["🎫 Tickets", "👥 Customers"])
-
-
     # TICKETS
     with tab1:
         st.subheader("Create Ticket (Support)")

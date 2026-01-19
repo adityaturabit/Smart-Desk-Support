@@ -8,7 +8,7 @@ from fastapi import Depends,HTTPException,APIRouter
 # from server.schemas.ticket_summary_schema import EmployeeTicketSummary, SupportTicketSummary,TeamLeadTicketSummary
 from sqlalchemy.sql import func, case
 from server.db_connect.ticket_state import ALLOWED_STATUS_TRANSITIONS
-
+from pydantic import BaseModel
 
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
@@ -151,9 +151,10 @@ def create_ticket(
 #     }
 
 
-
+class StatusUpdate(BaseModel):
+    status: str
 @router.patch("/{ticket_id}/status")
-def update_ticket_status(ticket_id : int,new_status : str,db: Session = Depends(get_db),current_user:User = Depends(get_current_user)):
+def update_ticket_status(ticket_id : int, payload: StatusUpdate ,new_status : str,db: Session = Depends(get_db),current_user:User = Depends(get_current_user)):
 
     tickets = db.query(Ticket).filter(Ticket.id == ticket_id).first()
 
@@ -164,6 +165,7 @@ def update_ticket_status(ticket_id : int,new_status : str,db: Session = Depends(
         raise HTTPException(status_code=403,detail=["Only for authorized entity"])
     
     current_status = tickets.status
+    new_status =  payload.status
 
     if new_status not in ALLOWED_STATUS_TRANSITIONS[current_status]:
         raise HTTPException(status_code=400,detail=["Not allowed this kind of direct transition"])
@@ -207,7 +209,7 @@ def update_ticket_status(ticket_id : int,new_status : str,db: Session = Depends(
 @router.delete("/{ticket_id}")
 def delete_ticket(ticket_id : int,delete_load: TicketDeleteRequest , db:Session = Depends(get_db),current_user : User = Depends(get_current_user)):
 
-    if current_user.role != "support":
+    if current_user.role not in  ["support","team_lead"]:
         raise HTTPException(status_code=403,detail=["Only support agents can access this"])
     
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
@@ -215,7 +217,7 @@ def delete_ticket(ticket_id : int,delete_load: TicketDeleteRequest , db:Session 
     if not ticket:
         raise HTTPException(status_code=404,detail=["Ticket not found"])
 
-    if ticket.assigned_agent != current_user.id:
+    if current_user.role == "support" and ticket.assigned_agent != current_user.id:
         raise HTTPException(status_code=403,detail=["Not your ticket"])
     
     if ticket.status == "closed":

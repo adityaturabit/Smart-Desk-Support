@@ -1,7 +1,7 @@
 import requests
 import streamlit as st
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://127.0.0.1:8000"
 
 def headers():
     return {
@@ -50,20 +50,28 @@ def delete_ticket(ticket_id, reason=None):
 
 def get_all_tickets():
     return requests.get(
-        f"{BASE_URL}/tickets/",
+        f"{BASE_URL}/tickets",
         headers=headers()
     )
 
 
 def assign_ticket(ticket_id, agent_id):
-    return requests.put(
+    return requests.patch(
         f"{BASE_URL}/tickets/{ticket_id}/assign",
         json={"agent_id": agent_id},
         headers=headers()
     )
 
+
 def get_weekly_analytics():
     return requests.get(
         f"{BASE_URL}/analytics/weekly",
+        headers=headers()
+    )
+
+
+def get_teamlead_tickets():
+    return requests.get(
+        f"{BASE_URL}/analytics/team-lead/summary",
         headers=headers()
     )
