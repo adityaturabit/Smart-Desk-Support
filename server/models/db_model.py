@@ -1,5 +1,6 @@
 from sqlalchemy import Column,String,Integer, FLOAT,Enum,ForeignKey, DateTime
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from server.db_connect.db_config import Base
 
 class Dept(Base):
@@ -7,6 +8,7 @@ class Dept(Base):
     dept_id = Column(Integer, autoincrement=True,primary_key=True)
     dept_name = Column(String(30),nullable=False)
     dept_code = Column(String(10),unique=True, nullable=False)
+    users = relationship("User",back_populates="department")
 
 # USER MODEL FOR LOGIN & LOGOUT
 class User(Base):
@@ -17,6 +19,7 @@ class User(Base):
     email_id = Column(String(20), unique=True,nullable=False)
     dept_id = Column(Integer,ForeignKey("depts.dept_id"))
     role = Column(Enum("employee","support","team_lead",name="user_roles"),nullable=False)
+    department = relationship("Dept", back_populates="users")
 
 # CUSTOMER MODEL AFTER A AGENT LOGS IN
 class Customer(Base):

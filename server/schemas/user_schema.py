@@ -12,6 +12,9 @@ class UserBase(BaseModel):
     name : str
     email_id: EmailStr
     role : UserRole
+    dept_id : int
+    dept_name : str
+    
 
 class UserCreate(UserBase):
     # email : str

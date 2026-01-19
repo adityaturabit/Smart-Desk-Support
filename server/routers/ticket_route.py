@@ -1,13 +1,15 @@
 from server.dependencies import get_db,get_current_user
 from server.models.db_model import Ticket,User,Customer
 from server.schemas.ticket_schema import TicketResponse, CreateTicket,TicketDeleteRequest,AssignTicketRequest
-from datetime import datetime, timedelta
+# from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from server.algo_services.round_robin import assign_next_agent
 from fastapi import Depends,HTTPException,APIRouter
 # from server.schemas.ticket_summary_schema import EmployeeTicketSummary, SupportTicketSummary,TeamLeadTicketSummary
 from sqlalchemy.sql import func, case
 from server.db_connect.ticket_state import ALLOWED_STATUS_TRANSITIONS
+
+
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
@@ -46,6 +48,20 @@ def create_ticket(
         assigned_agent_id = assign_next_agent(db)
         if assigned_agent_id:
             status = "pending"
+        
+        # new_ticket = Ticket(
+        # title = ticket.title,
+        # description = ticket.description,
+        # priority = ticket.priority,
+        # created_by_user_id = current_user.id,
+        # assigned_agent = assigned_agent_id, #current_user.id if current_user.role == "support" else None,
+        # customer_id = ticket.customer_id
+        # )
+        # db.add(new_ticket)
+        # db.commit()
+        # db.flush()
+        # return new_ticket
+
 
     if current_user.role == "support" and not ticket.customer_id:
         raise HTTPException(status_code=401,detail="Customer required")

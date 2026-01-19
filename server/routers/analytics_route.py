@@ -1,7 +1,7 @@
 from server.schemas.analytics_schema import AgentDailyStatus
 from server.schemas.ticket_summary_schema import TeamLeadTicketSummary,SupportTicketSummary,EmployeeTicketSummary
 # from server.schemas. import TeamLeadTicketSummary
-from server.models.db_model import Ticket, User, Customer
+from server.models.db_model import Ticket, User, Customer, Dept
 from server.dependencies import get_db,get_current_user
 
 from fastapi import APIRouter,Depends,HTTPException
@@ -82,13 +82,15 @@ def team_lead_ticket_summary( db: Session = Depends(get_db), current_user : User
 def weekly_agent_stats(db:Session = Depends(get_db),current_user: User = Depends(get_current_user)):
 
     if current_user.role!= "team_lead":
-        raise HTTPException(status_code=404,detail=["Not the accessed user"])
+        raise HTTPException(status_code=403,detail=["Not the accessed user"])
     
     current_time = datetime.utcnow()
     last_week = current_time - timedelta(days=7)
 
     states = (
-        db.query(Ticket.assigned_agent.label("agent_id"),
+        db.query(Dept.dept_id,
+                 Dept.dept_name,
+                 Ticket.assigned_agent.label("agent_id"),
                  User.name.label("agent_name"),
                  cast(Ticket.created_at,Date).label("date"),
                  func.count(case((Ticket.status == "open",1))).label("opened"),
