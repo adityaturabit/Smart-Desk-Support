@@ -4,7 +4,7 @@ from server.schemas.ticket_schema import TicketResponse, CreateTicket,TicketDele
 # from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from server.algo_services.round_robin import assign_next_agent
-from fastapi import Depends,HTTPException,APIRouter
+from fastapi import Depends,HTTPException,APIRouter,status
 # from server.schemas.ticket_summary_schema import EmployeeTicketSummary, SupportTicketSummary,TeamLeadTicketSummary
 from sqlalchemy.sql import func, case
 from server.db_connect.ticket_state import ALLOWED_STATUS_TRANSITIONS
@@ -16,20 +16,25 @@ router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
 @router.get("/",response_model=list[TicketResponse])
 def get_ticket(db:Session=Depends(get_db),current_user : User = Depends(get_current_user)):
+    try:
+        if current_user.role == "employee":
+            return (
+                db.query(Ticket).filter(Ticket.created_by_user_id == current_user.id).all()
+            )
+            # raise HTTPException(status_code=403,detail="Only for the Authorized members")
 
-    if current_user.role == "employee":
-        return (
-            db.query(Ticket).filter(Ticket.created_by_user_id == current_user.id).all()
+        if current_user.role == "support":
+            return (
+                db.query(Ticket).filter(Ticket.assigned_agent == current_user.id).all()
+            )
+        
+        #for team lead
+        return db.query(Ticket).all()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
         )
-        # raise HTTPException(status_code=403,detail="Only for the Authorized members")
-
-    if current_user.role == "support":
-        return (
-            db.query(Ticket).filter(Ticket.assigned_agent == current_user.id).all()
-        )
-    
-    #for team lead
-    return db.query(Ticket).all()
 
 
 #will works when an employee creates a ticket cuz it will auto assign the ticket to an agent using round robin algo
@@ -37,49 +42,55 @@ def get_ticket(db:Session=Depends(get_db),current_user : User = Depends(get_curr
 def create_ticket(
     ticket : CreateTicket, db: Session = Depends(get_db),current_user : User = Depends(get_current_user)
 ):
-    
-    if current_user.role not in ["employee","support"]:
-        raise HTTPException(status_code=404,detail="Not allowed")
-    
-    assigned_agent_id = None
-    status = "open"
-
-    if current_user.role == "employee":
-        assigned_agent_id = assign_next_agent(db)
-        if assigned_agent_id:
-            status = "pending"
+    try:
+        if current_user.role not in ["employee","support"]:
+            raise HTTPException(status_code=404,detail="Not allowed")
         
-        # new_ticket = Ticket(
-        # title = ticket.title,
-        # description = ticket.description,
-        # priority = ticket.priority,
-        # created_by_user_id = current_user.id,
-        # assigned_agent = assigned_agent_id, #current_user.id if current_user.role == "support" else None,
-        # customer_id = ticket.customer_id
-        # )
-        # db.add(new_ticket)
-        # db.commit()
-        # db.flush()
-        # return new_ticket
+        assigned_agent_id = None
+        # statuss = "open"
+
+        if current_user.role == "employee":
+            assigned_agent_id = assign_next_agent(db)
+            # if assigned_agent_id:
+            #     statuss = "pending"
+            
+            # new_ticket = Ticket(
+            # title = ticket.title,
+            # description = ticket.description,
+            # priority = ticket.priority,
+            # created_by_user_id = current_user.id,
+            # assigned_agent = assigned_agent_id, #current_user.id if current_user.role == "support" else None,
+            # customer_id = ticket.customer_id
+            # )
+            # db.add(new_ticket)
+            # db.commit()
+            # db.flush()
+            # return new_ticket
 
 
-    if current_user.role == "support" and not ticket.customer_id:
-        raise HTTPException(status_code=401,detail="Customer required")
-    
-    new_ticket = Ticket(
-        title = ticket.title,
-        description = ticket.description,
-        priority = ticket.priority,
-        created_by_user_id = current_user.id,
-        assigned_agent = current_user.id if current_user.role == "support" else assigned_agent_id ,
-        customer_id = ticket.customer_id,
+        if current_user.role == "support" and not ticket.customer_id:
+            raise HTTPException(status_code=401,detail="Customer required")
         
-    )
+        new_ticket = Ticket(
+            title = ticket.title,
+            description = ticket.description,
+            priority = ticket.priority,
+            created_by_user_id = current_user.id,
+            assigned_agent = current_user.id if current_user.role == "support" else assigned_agent_id ,
+            customer_id = ticket.customer_id,
+            
+        )
 
-    db.add(new_ticket)
-    db.commit()
-    db.flush()
-    return new_ticket
+        db.add(new_ticket)
+        db.commit()
+        db.flush()
+        return new_ticket
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
 
 
 
@@ -156,27 +167,33 @@ class StatusUpdate(BaseModel):
     status: str
 @router.patch("/{ticket_id}/status")
 def update_ticket_status(ticket_id : int, payload: StatusUpdate,db: Session = Depends(get_db),current_user:User = Depends(get_current_user)):
+    try:
+        tickets = db.query(Ticket).filter(Ticket.id == ticket_id).first()
 
-    tickets = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+        if not tickets:
+            raise HTTPException(status_code=404,detail=["Ticket not found"])
+        
+        if current_user.role not in ["support","team_lead"]:
+            raise HTTPException(status_code=403,detail=["Only for authorized entity"])
+        
+        current_status = tickets.status
+        new_status =  payload.status
 
-    if not tickets:
-        raise HTTPException(status_code=404,detail=["Ticket not found"])
-    
-    if current_user.role not in ["support","team_lead"]:
-        raise HTTPException(status_code=403,detail=["Only for authorized entity"])
-    
-    current_status = tickets.status
-    new_status =  payload.status
+        if new_status not in ALLOWED_STATUS_TRANSITIONS[current_status]:
+            raise HTTPException(status_code=400,detail=["Not allowed this kind of direct transition"])
+        
+        tickets.status = new_status
+        db.commit()
 
-    if new_status not in ALLOWED_STATUS_TRANSITIONS[current_status]:
-        raise HTTPException(status_code=400,detail=["Not allowed this kind of direct transition"])
-    
-    tickets.status = new_status
-    db.commit()
-
-    return {
-        f"ticket status moved from {current_status} to {new_status}"
-    }
+        return {
+            f"ticket status moved from {current_status} to {new_status}"
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
 
 
 
@@ -209,64 +226,74 @@ def update_ticket_status(ticket_id : int, payload: StatusUpdate,db: Session = De
 
 @router.delete("/{ticket_id}")
 def delete_ticket(ticket_id : int,delete_load: TicketDeleteRequest , db:Session = Depends(get_db),current_user : User = Depends(get_current_user)):
+    try:
+        if current_user.role not in  ["support","team_lead"]:
+            raise HTTPException(status_code=403,detail=["Only support agents can access this"])
+        
+        ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
 
-    if current_user.role not in  ["support","team_lead"]:
-        raise HTTPException(status_code=403,detail=["Only support agents can access this"])
-    
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+        if not ticket:
+            raise HTTPException(status_code=404,detail=["Ticket not found"])
 
-    if not ticket:
-        raise HTTPException(status_code=404,detail=["Ticket not found"])
-
-    if current_user.role == "support" and ticket.assigned_agent != current_user.id:
-        raise HTTPException(status_code=403,detail=["Not your ticket"])
-    
-    if ticket.status == "closed":
+        if current_user.role == "support" and ticket.assigned_agent != current_user.id:
+            raise HTTPException(status_code=403,detail=["Not your ticket"])
+        
+        if ticket.status == "closed":
+            db.delete(ticket)
+            db.commit()
+            return {"message":f"Ticket deleted of Customer {Customer.name} by agent {current_user.name}"}
+        
+        if not delete_load.reason:
+            raise HTTPException(status_code=400,detail=["deletion request for non-closed Ticket."])
+        
+        ticket.deletion_reason = delete_load.reason
         db.delete(ticket)
         db.commit()
-        return {"message":f"Ticket deleted of Customer {Customer.name} by agent {current_user.name}"}
-    
-    if not delete_load.reason:
-        raise HTTPException(status_code=400,detail=["deletion request for non-closed Ticket."])
-    
-    ticket.deletion_reason = delete_load.reason
-    db.delete(ticket)
-    db.commit()
 
-    return {
-        "message": f"Ticket ID {ticket.id} deleted by agent {current_user.name}",
-        "reason" : delete_load.reason
-    }
+        return {
+            "message": f"Ticket ID {ticket.id} deleted by agent {current_user.name}",
+            "reason" : delete_load.reason
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
 
 
 #unassigned tickets can only be assigned by the team_lead
 
 @router.patch("/{ticket_id}/assign",response_model = TicketResponse)
 def assign_ticket(ticket_id : int,assign_load: AssignTicketRequest,db :Session =Depends(get_db), current_user: User = Depends(get_current_user)):
+    try:
+        if current_user.role!="team_lead":
+            raise HTTPException(status_code = 403,detail = ["Only Team lead can assign the task"])
 
-    if current_user.role!="team_lead":
-        raise HTTPException(status_code = 403,detail = ["Only Team lead can assign the task"])
+        ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
 
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+        if not ticket:
+            raise HTTPException(status_code = 404,detail = ["No ticket was found"])
+        
+        if ticket.status != "open":
+            raise HTTPException(status_code = 400,detail = ["Only OPEN tickets can be assigned"])
+        
+        agent = db.query(User).filter(
+            User.id == assign_load.agent_id,
+            User.role == "support"
+        ).first()
 
-    if not ticket:
-        raise HTTPException(status_code = 404,detail = ["No ticket was found"])
-    
-    if ticket.status != "open":
-        raise HTTPException(status_code = 400,detail = ["Only OPEN tickets can be assigned"])
-    
-    agent = db.query(User).filter(
-        User.id == assign_load.agent_id,
-        User.role == "support"
-    ).first()
+        if not agent:
+            raise HTTPException(status_code = 404,detail = ["Support Agent not found"])
+        
+        ticket.assigned_agent = agent.id
+        ticket.status = "pending"
 
-    if not agent:
-        raise HTTPException(status_code = 404,detail = ["Support Agent not found"])
-    
-    ticket.assigned_agent = agent.id
-    ticket.status = "pending"
+        db.commit()
+        db.refresh(ticket)
 
-    db.commit()
-    db.refresh(ticket)
-
-    return ticket
+        return ticket
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )

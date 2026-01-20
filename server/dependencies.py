@@ -1,5 +1,5 @@
 from server.db_connect.db_config import Sessionlocal
-from fastapi import Header , Depends, HTTPException
+from fastapi import Header , Depends, HTTPException,status
 from sqlalchemy.orm import Session
 from server.models.db_model import User, Customer
 from server.db_connect.redis_conn.redis_client import redis_client
@@ -18,22 +18,24 @@ def get_current_user(x_session_id : str = Header(...,alias="X-SESSION-ID"),
     db : Session = Depends(get_db)
     ) -> User:
 
+    try:
+        user_id = redis_client.get(f"session:{x_session_id}")
+        # print("SESSION HEADER RECEIVED:", x_session_id)
 
-    user_id = redis_client.get(f"session:{x_session_id}")
-    # print("SESSION HEADER RECEIVED:", x_session_id)
+        # value = redis_client.get(f"session:{x_session_id}")
+        # print("SESSION VALUE IN REDIS:", value)
 
-    # value = redis_client.get(f"session:{x_session_id}")
-    # print("SESSION VALUE IN REDIS:", value)
+        if not user_id:
+            raise HTTPException(status_code=401,detail="Session expired or Invalid")
+        
+        user = db.query(User).filter(User.id == int(user_id)).first()
+        
 
-    if not user_id:
-        raise HTTPException(status_code=401,detail="Session expired or Invalid")
-    
-    user = db.query(User).filter(User.id == int(user_id)).first()
-    
-
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user
+    except HTTPException as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail=str(e))
 
 
 #--------------to get Customers which can be accessed by agents and team lead only
