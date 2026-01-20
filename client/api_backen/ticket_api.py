@@ -30,7 +30,7 @@ def get_assigned_tickets():
 
 # 🔹 Update ticket status
 def update_ticket_status(ticket_id, status):
-    return requests.put(
+    return requests.patch(
         f"{BASE_URL}/tickets/{ticket_id}/status",
         json={"status": status},
         headers=headers()

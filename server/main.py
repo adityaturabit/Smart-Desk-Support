@@ -13,8 +13,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 
 
-
-
 app = FastAPI(title="Smart Support Desk",tags=["WOW"])
 
 app.add_middleware(CORSMiddleware,allow_origins = ["*"],allow_methods = ["*"])

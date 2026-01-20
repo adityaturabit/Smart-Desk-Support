@@ -72,6 +72,11 @@ def render():
 
 def render_all_tickets():
     res = get_teamlead_tickets()
+
+    if res.status_code != 200:
+        st.error(res.text)
+        return
+
     data = res.json()["tickets"]
 
     for t in data:
@@ -89,11 +94,16 @@ def render_all_tickets():
 
             if st.button("Update Status", key=f"btn_{t['id']}"):
                 update_ticket_status(t["id"], new_status)
-                st.rerun()
+                if res.status_code == 200:
+                    st.success("Status updated")
+                    st.rerun()
+                else:
+                    st.error(res.text)
 
-            if st.button("🗑 Delete", key=f"del_{t['id']}"):
-                delete_ticket(t["id"], reason="Deleted by Team Lead")
-                st.rerun()
+            if t["status"] == "closed":
+                if st.button("🗑 Delete", key=f"del_{t['id']}"):
+                    delete_ticket(t["id"], reason="Deleted by Team Lead")
+                    st.rerun()
 
 
 # def render_assignment():

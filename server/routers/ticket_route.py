@@ -154,7 +154,7 @@ def create_ticket(
 class StatusUpdate(BaseModel):
     status: str
 @router.patch("/{ticket_id}/status")
-def update_ticket_status(ticket_id : int, payload: StatusUpdate ,new_status : str,db: Session = Depends(get_db),current_user:User = Depends(get_current_user)):
+def update_ticket_status(ticket_id : int, payload: StatusUpdate,db: Session = Depends(get_db),current_user:User = Depends(get_current_user)):
 
     tickets = db.query(Ticket).filter(Ticket.id == ticket_id).first()
 

@@ -31,7 +31,7 @@ def delete_customer(customer_id):
         f"{BASE_URL}/customers/{customer_id}",
         headers=headers()
     )
-
+ 
 def get_support_agents():
     return requests.get(
         f"{BASE_URL}/users/support",
