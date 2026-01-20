@@ -33,7 +33,7 @@ class TicketResponse(TicketBase):
     assigned_agent : Optional[int]
     customer_id : Optional[int]
     created_at : datetime
-    updated_at : datetime
+    updated_at : Optional[datetime] = None
 
     class Config:
         from_attributes = True

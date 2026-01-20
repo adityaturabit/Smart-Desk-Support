@@ -2,6 +2,91 @@ import streamlit as st
 from api_backen.ticket_api import get_teamlead_tickets,assign_ticket,get_weekly_analytics,delete_ticket,update_ticket_status
 from utils.state import is_logged_in
 from api_backen.customer_api import get_support_agents
+import pandas as pd
+import altair as alt
+
+
+def status_badge(status):
+    colors = {
+        "open": "🔵 OPEN", 
+        "pending": "🟠 PENDING",
+        "closed": "⚫ CLOSED"
+    }
+    return colors.get(status, status)
+
+
+
+def render_kpis(tickets):
+    open_t = len([t for t in tickets if t["status"] == "open"])
+    pending_t = len([t for t in tickets if t["status"] == "pending"])
+    closed_t = len([t for t in tickets if t["status"] == "closed"])
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric("Total Tickets", len(tickets))
+    c2.metric("Open", open_t)
+    c3.metric("Pending", pending_t)
+    c4.metric("Closed", closed_t)
+
+
+def render_active_tickets(tickets):
+    st.subheader("📋 Active Tickets")
+
+    active = [t for t in tickets if t["status"] != "closed"]
+
+    if not active:
+        st.success("🎉 No active tickets")
+        return
+
+    for t in active:
+        with st.container(border=True):
+            st.markdown(f"### 🎫 {t['title']}")
+            st.markdown(status_badge(t["status"]))
+
+            col1, col2 = st.columns(2)
+            col1.write(f"**Priority:** {t['priority']}")
+            col2.write(f"**Customer ID:** {t['customer_id']}")
+
+            new_status = st.selectbox(
+                "Change Status",
+                ["open", "pending", "closed"],
+                index=["open","pending","closed"].index(t["status"]),
+                key=f"status_{t['id']}"
+            )
+
+            if st.button("✅ Update Status", key=f"upd_{t['id']}"):
+                res = update_ticket_status(t["id"], new_status)
+                if res.status_code == 200:
+                    st.success("Updated")
+                    st.rerun()
+                else:
+                    st.error(res.text)
+
+
+def render_closed_tickets(tickets):
+    st.subheader("🗃 Closed Tickets (Read-Only)")
+
+    closed = [t for t in tickets if t["status"] == "closed"]
+
+    if not closed:
+        st.info("No closed tickets yet")
+        return
+
+    for t in closed:
+        with st.expander(f"⚫ {t['title']} (ID {t['id']})"):
+            st.write("Priority:", t["priority"])
+            st.write("Assigned Agent:", t["assigned_agent"])
+            st.write("Customer:", t["customer_id"])
+
+            if st.button("🗑 Permanently Delete", key=f"del_{t['id']}"):
+                res = delete_ticket(t["id"], reason="Deleted by Team Lead")
+                if res.status_code == 200:
+                    st.success("Deleted")
+                    st.rerun()
+                else:
+                    st.error(res.text)
+
+
 
 
 def normalize_tickets(data):
@@ -40,119 +125,27 @@ def render():
     with tabs[2]:
         render_weekly_analytics()
 
-# def render_all_tickets():
-#     res = get_teamlead_tickets()
-    
-#     if res.status_code != 200:
-#         st.error("Failed to load tickets")
-#         st.write(res.text)
-#         return
 
-#     tickets = normalize_tickets(res.json())
-
-#     if not tickets:
-#         st.info("No tickets found")
-#         return
-
-#     for t in tickets:
-#         with st.expander(f"🎫 {t['title']} [{t['status']}]"):
-#             st.write("Priority:", t["priority"])
-#             st.write("Assigned Agent:", t.get("assigned_agent"))
-#             st.write("Created By:", t.get("created_by_user_id"))
-#             st.write("Customer:", t.get("customer_id"))
-
-#         if t["status"] == "closed":
-#             if st.button(f"🗑 Delete Ticket {t['id']}", key=f"del_{t['id']}"):
-#                 res = delete_ticket(t["id"])
-#                 if res.status_code == 200:
-#                     st.success("Deleted")
-#                     st.rerun()
-#                 else:
-#                     st.error(res.text)
 
 def render_all_tickets():
     res = get_teamlead_tickets()
 
     if res.status_code != 200:
-        st.error(res.text)
+        st.error("Failed to load tickets")
+        st.write(res.text)
         return
 
-    data = res.json()["tickets"]
+    tickets = res.json()["tickets"]
 
-    for t in data:
-        with st.expander(f"🎫 {t['title']} [{t['status']}]"):
-            st.write("Priority:", t["priority"])
-            st.write("Assigned Agent:", t["assigned_agent"])
-            st.write("Customer:", t["customer_id"])
-
-            new_status = st.selectbox(
-                "Change Status",
-                ["open", "pending", "closed"],
-                index=["open","pending","closed"].index(t["status"]),
-                key=f"status_{t['id']}"
-            )
-
-            if st.button("Update Status", key=f"btn_{t['id']}"):
-                update_ticket_status(t["id"], new_status)
-                if res.status_code == 200:
-                    st.success("Status updated")
-                    st.rerun()
-                else:
-                    st.error(res.text)
-
-            if t["status"] == "closed":
-                if st.button("🗑 Delete", key=f"del_{t['id']}"):
-                    delete_ticket(t["id"], reason="Deleted by Team Lead")
-                    st.rerun()
+    render_kpis(tickets)
+    st.divider()
+    render_active_tickets(tickets)
+    st.divider()
+    render_closed_tickets(tickets)
 
 
-# def render_assignment():
-#     st.subheader("Assign / Reassign Ticket")
 
-#     agents_res = get_support_agents()
-#     if agents_res.status_code != 200:
-#         st.error("Failed to load support agents")
-#         return
-#     agents = agents_res.json()
 
-#     tickets_res = get_teamlead_tickets()
-#     if tickets_res.status_code != 200:
-#         st.error("Failed to load tickets")
-#         st.write(tickets_res.text)
-#         return
-
-#     tickets = normalize_tickets(tickets_res.json())
-#     tickets = [t for t in tickets if t["status"] == "open"]
-
-#     if not tickets:
-#         st.info("No OPEN tickets available for assignment")
-#         return
-
-#     ticket_map = {
-#         f"{t['title']} (ID {t['id']})": t["id"]
-#         for t in tickets
-#     }
-
-#     agent_map = {
-#         f"{a['name']} (ID {a['id']})": a["id"]
-#         for a in agents
-#     }
-
-#     with st.form("assign_ticket_form"):
-#         ticket_label = st.selectbox("Ticket", list(ticket_map.keys()))
-#         agent_label = st.selectbox("Support Agent", list(agent_map.keys()))
-
-#         if st.form_submit_button("Assign"):
-#             res = assign_ticket(
-#                 ticket_map[ticket_label],
-#                 agent_map[agent_label]
-#             )
-
-#             if res.status_code == 200:
-#                 st.success("Ticket assigned")
-#                 st.rerun()
-#             else:
-#                 st.error(res.text)
 
 def render_assignment():
     st.subheader("🔁 Assign / Reassign Ticket")
@@ -225,18 +218,88 @@ def render_assignment():
                 st.write(res.text)
 
 
+
+
+
+def render_stacked_chart(df):
+    st.markdown("### 📊 Ticket Status Distribution")
+
+    chart_data = df.melt(
+        id_vars=["date", "agent_name"],
+        value_vars=["opened", "pending", "closed"],
+        var_name="status",
+        value_name="count"
+    )
+
+    chart = (
+        alt.Chart(chart_data)
+        .mark_bar()
+        .encode(
+            x=alt.X("date:T", title="Date"),
+            y=alt.Y("count:Q", title="Tickets"),
+            color=alt.Color(
+                "status:N",
+                scale=alt.Scale(
+                    domain=["opened", "pending", "closed"],
+                    range=["#1f77b4", "#ff7f0e", "#2ca02c"]
+                ),
+                title="Status"
+            ),
+            tooltip=[
+                "agent_name",
+                "status",
+                "count",
+                alt.Tooltip("date:T", title="Date")
+            ]
+        )
+        .properties(height=400)
+    )
+
+    st.altair_chart(chart, use_container_width=True)
+
+
+
 def render_weekly_analytics():
-    st.subheader("Weekly Agent Stats")
+    st.subheader("📈 Weekly Agent Performance")
 
     res = get_weekly_analytics()
 
     if res.status_code != 200:
         st.error("Failed to load analytics")
+        st.write(res.text)
         return
 
     data = res.json()
 
-    st.dataframe(data)
+    if not data:
+        st.info("No analytics data available")
+        return
+
+    # ---------- Convert to DataFrame ----------
+    df = pd.DataFrame(data)
+    df["date"] = pd.to_datetime(df["date"])
+
+    # ---------- Agent Filter ----------
+    agent_options = ["All Agents"] + sorted(df["agent_name"].unique().tolist())
+
+    selected_agent = st.selectbox(
+        "👤 Filter by Support Agent",
+        agent_options
+    )
+
+    if selected_agent != "All Agents":
+        df = df[df["agent_name"] == selected_agent]
+
+    # ---------- Show Table ----------
+    st.markdown("### 📋 Weekly Breakdown")
+    st.dataframe(
+        df[["date", "agent_name", "opened", "pending", "closed"]],
+        use_container_width=True
+    )
+
+    # ---------- Stacked Bar Chart ----------
+    render_stacked_chart(df)
+
 
 
 

@@ -88,14 +88,13 @@ def weekly_agent_stats(db:Session = Depends(get_db),current_user: User = Depends
     last_week = current_time - timedelta(days=7)
 
     states = (
-        db.query(Dept.dept_id,
-                 Dept.dept_name,
+        db.query(
                  Ticket.assigned_agent.label("agent_id"),
                  User.name.label("agent_name"),
                  cast(Ticket.created_at,Date).label("date"),
-                 func.count(case((Ticket.status == "open",1))).label("opened"),
-                 func.count(case((Ticket.status == "pending",1))).label("pending"),
-                 func.count(case((Ticket.status == "closed",1))).label("closed"),
+                 func.sum(case((Ticket.status == "open",1), else_=0)).label("opened"),
+                 func.sum(case((Ticket.status == "pending",1), else_=0)).label("pending"),
+                 func.sum(case((Ticket.status == "closed",1), else_=0)).label("closed"),
                  ).join(
                      User, User.id == Ticket.assigned_agent
                  ).filter(

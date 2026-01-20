@@ -71,8 +71,9 @@ def create_ticket(
         description = ticket.description,
         priority = ticket.priority,
         created_by_user_id = current_user.id,
-        assigned_agent = assigned_agent_id, #current_user.id if current_user.role == "support" else None,
-        customer_id = ticket.customer_id
+        assigned_agent = current_user.id if current_user.role == "support" else assigned_agent_id ,
+        customer_id = ticket.customer_id,
+        
     )
 
     db.add(new_ticket)

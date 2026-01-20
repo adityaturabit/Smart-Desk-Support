@@ -7,7 +7,7 @@ from views.team_lead import render as teamlead_view
 
 st.set_page_config(page_title="Smart Support Desk", layout="wide")
 
-init_session() 
+init_session()   
 
 # -------- SIDEBAR --------
 if is_logged_in():
