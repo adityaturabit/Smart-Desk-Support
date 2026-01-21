@@ -13,7 +13,7 @@ router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
 
 @router.get("/",response_model=list[TicketResponse])
-def get_ticket(db:Session=Depends(get_db),current_user : User = Depends(get_current_user)):
+async def get_ticket(db:Session=Depends(get_db),current_user : User = Depends(get_current_user)):
 
     if current_user.role == "employee":
         return (
@@ -32,7 +32,7 @@ def get_ticket(db:Session=Depends(get_db),current_user : User = Depends(get_curr
 
 #will works when an employee creates a ticket cuz it will auto assign the ticket to an agent using round robin algo
 @router.post("/",response_model=TicketResponse)
-def create_ticket(
+async def create_ticket(
     ticket : CreateTicket, db: Session = Depends(get_db),current_user : User = Depends(get_current_user)
 ):
     
@@ -137,7 +137,7 @@ def create_ticket(
 
 
 @router.patch("/{ticket_id}/status")
-def update_ticket_status(ticket_id : int,new_status : str,db: Session = Depends(get_db),current_user:User = Depends(get_current_user)):
+async def update_ticket_status(ticket_id : int,new_status : str,db: Session = Depends(get_db),current_user:User = Depends(get_current_user)):
 
     tickets = db.query(Ticket).filter(Ticket.id == ticket_id).first()
 
@@ -189,7 +189,7 @@ def update_ticket_status(ticket_id : int,new_status : str,db: Session = Depends(
 
 
 @router.delete("/{ticket_id}")
-def delete_ticket(ticket_id : int,delete_load: TicketDeleteRequest , db:Session = Depends(get_db),current_user : User = Depends(get_current_user)):
+async def delete_ticket(ticket_id : int,delete_load: TicketDeleteRequest , db:Session = Depends(get_db),current_user : User = Depends(get_current_user)):
 
     if current_user.role != "support":
         raise HTTPException(status_code=403,detail=["Only support agents can access this"])
@@ -223,7 +223,7 @@ def delete_ticket(ticket_id : int,delete_load: TicketDeleteRequest , db:Session 
 #unassigned tickets can only be assigned by the team_lead
 
 @router.patch("/{ticket_id}/assign",response_model = TicketResponse)
-def assign_ticket(ticket_id : int,assign_load: AssignTicketRequest,db :Session =Depends(get_db), current_user: User = Depends(get_current_user)):
+async def assign_ticket(ticket_id : int,assign_load: AssignTicketRequest,db :Session =Depends(get_db), current_user: User = Depends(get_current_user)):
 
     if current_user.role!="team_lead":
         raise HTTPException(status_code = 403,detail = ["Only Team lead can assign the task"])

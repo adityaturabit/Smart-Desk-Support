@@ -7,7 +7,7 @@ router = APIRouter(prefix="/users", tags=["Users"])
 
 
 @router.get("/support")
-def get_support_agents(
+async def get_support_agents(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

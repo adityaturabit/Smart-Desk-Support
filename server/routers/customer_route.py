@@ -9,7 +9,7 @@ from typing import List
 router = APIRouter(prefix="/customers", tags=["Customers"])
 
 @router.post("/",response_model=CustomerResponse)
-def create_customer(customer: CustomerCreate,
+async def create_customer(customer: CustomerCreate,
                      db:Session = Depends(get_db),
                      current_user: User = Depends(get_current_user)):
     
@@ -36,7 +36,7 @@ def create_customer(customer: CustomerCreate,
     return new_customer
 
 @router.get("/",response_model=list[CustomerResponse])
-def get_customers(db:Session=Depends(get_db),current_user : User = Depends(get_current_user)):
+async def get_customers(db:Session=Depends(get_db),current_user : User = Depends(get_current_user)):
 
     if current_user.role == "employee":
         raise HTTPException(status_code=403,detail="Only for the Authorized members")
@@ -52,7 +52,7 @@ def get_customers(db:Session=Depends(get_db),current_user : User = Depends(get_c
 
 #customer can be updated by thos agent only who created them in the first place
 @router.put("/{customer_id}",response_model=CustomerResponse)
-def update_customer(customer_id: int, customer : CustomerCreate, db:Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def update_customer(customer_id: int, customer : CustomerCreate, db:Session = Depends(get_db), current_user: User = Depends(get_current_user)):
 
     if current_user.role != "support":
         raise HTTPException(status_code=404,detail=["Only support agent can"])
@@ -78,7 +78,7 @@ def update_customer(customer_id: int, customer : CustomerCreate, db:Session = De
 
 #customer can be deleted by those agent who created in the first place
 @router.delete("/{customer_id}")
-def delete_customer( customer_id : int, db:Session = Depends(get_db), current_user : User = Depends(get_current_user)):
+async def delete_customer( customer_id : int, db:Session = Depends(get_db), current_user : User = Depends(get_current_user)):
 
     if current_user.role != "support":
         raise HTTPException(status_code=403,detail=["Only support agents are allowed"])
