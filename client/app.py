@@ -24,11 +24,9 @@ if is_logged_in():
 
 # -------- ROUTING --------
 if not is_logged_in():
-    tab1, tab2 = st.tabs(["Login", "Register"])
-    with tab1:
-        login.render()
-    with tab2:
-        register.render()
+    
+    login.render()
+
 else:
     if st.session_state.role == "employee":
         employee_view()

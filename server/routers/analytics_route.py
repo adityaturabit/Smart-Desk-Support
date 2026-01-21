@@ -126,11 +126,11 @@ def weekly_agent_stats(db:Session = Depends(get_db),current_user: User = Depends
     
 
 
-@router.get("/all_customer",response_model=CustomerResponse)
-async def all_customer(db:Session = Depends(get_db),current_user : User = Depends(get_current_user)):
+# @router.get("/all_customer",response_model=CustomerResponse)
+# async def all_customer(db:Session = Depends(get_db),current_user : User = Depends(get_current_user)):
 
-    try:
-        if current_user.role != "team_lead":
-            raise HTTPException(status_code=403,detail=["Only team-lead/admin can access this"])
+#     try:
+#         if current_user.role != "team_lead":
+#             raise HTTPException(status_code=403,detail=["Only team-lead/admin can access this"])
         
-        db.query(User).filter()
+#         db.query(User).filter()

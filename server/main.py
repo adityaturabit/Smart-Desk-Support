@@ -17,10 +17,10 @@ app = FastAPI(title="Smart Support Desk",tags=["WOW"])
 
 app.add_middleware(CORSMiddleware,allow_origins = ["*"],allow_methods = ["*"])
 
-@app.on_event("startup")
-def start_up():
-    # Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind = engine)
+# @app.on_event("startup")
+# def start_up():
+#     # Base.metadata.drop_all(bind=engine)
+#     Base.metadata.create_all(bind = engine)
 
 
 @app.get("/")
