@@ -10,7 +10,7 @@ import uuid
 from server.db_connect.redis_conn.redis_client import redis_client
 from server.routers import user_route
 from fastapi.middleware.cors import CORSMiddleware
-
+from server.utils.auth_security import verify_password, hash_password
 
 
 app = FastAPI(title="Smart Support Desk",tags=["WOW"])
@@ -34,7 +34,7 @@ def register(user: UserCreate, db:Session = Depends(get_db)):
         existing = db.query(User).filter(User.emp_id == user.emp_id).first()
 
         if existing:
-            return HTTPException(status_code=400,detail="User already exists")
+            raise HTTPException(status_code=400,detail="User already exists")
         
         dept = db.query(Dept).filter(Dept.dept_id == user.dept_id).first()
 
@@ -46,7 +46,8 @@ def register(user: UserCreate, db:Session = Depends(get_db)):
             name = user.name,
             email_id = user.email_id,
             role = user.role,
-            dept_id = user.dept_id
+            dept_id = user.dept_id,
+            password_hash = hash_password(user.password)
         )
         # use = db.query(User).first()
         # print(use.department.dept_name)
@@ -70,13 +71,17 @@ def register(user: UserCreate, db:Session = Depends(get_db)):
 @app.post("/login")
 def login(payload: LoginReq,db: Session = Depends(get_db)):
     try:
-        existing_user1 = db.query(User).filter(User.emp_id == payload.emp_id).first()
-        existing_user = db.query(User).filter(User.email_id == payload.email_id).first()
+        existing_user = db.query(User).filter(
+            User.emp_id == payload.emp_id,
+            User.email_id == payload.email_id
+            ).first()
 
         if not existing_user:
             raise HTTPException(status_code=401, detail="Invalid credentials")
-        if not existing_user1:
+        
+        if not verify_password(payload.password, existing_user.password_hash):
             raise HTTPException(status_code=401, detail="Invalid credentials")
+
         
         session_id = str(uuid.uuid4())
 

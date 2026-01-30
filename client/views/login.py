@@ -8,9 +8,15 @@ def render():
 
     emp_id = st.text_input("Employee ID", key="login_emp")
     email = st.text_input("Email", key="login_email")
+    password = st.text_input("Password", type="password")
 
     if st.button("Login"):
-        res = login(emp_id, email)
+
+        if not emp_id or not email or not password:
+            st.warning("Please fill all fields")
+            return
+        
+        res = login(emp_id,email, password)
 
         if res.status_code == 200:
             data = res.json()

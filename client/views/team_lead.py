@@ -64,7 +64,7 @@ def render():
         st.subheader("⚫ Closed Tickets")
         show_ticket_table(closed, "closed")
 
-        if "selected_ticket" in st.session_state:
+        if st.session_state.get("selected_ticket"):
             show_ticket_detail(st.session_state.selected_ticket)
         
 
@@ -142,6 +142,7 @@ def render():
         email = st.text_input("Email", key="reg_email")
         dept_id = st.number_input("Department ID",key="dept_id",min_value=1,max_value=10,step=1)
         role = st.selectbox("Role", ["support", "team_lead"])
+        password = st.text_input("Password", key="reg_password")
 
         if st.button("Register"):
             payload = {
@@ -149,7 +150,8 @@ def render():
                 "name": name,
                 "email_id": email,
                 "role": role,
-                "dept_id" : dept_id
+                "dept_id" : dept_id,
+                "password": password
             }
 
             res = register(payload)
@@ -195,7 +197,7 @@ def render():
     # ================= TAB 4: CUSTOMERS =================
     with tabs[4]:
         st.subheader("👥 Customers Created by Support Agents")
-
+        
         if not customers:
             st.info("No customers found")
         else:
@@ -229,10 +231,13 @@ def show_ticket_table(tickets, key_prefix):
         key=f"select_{key_prefix}",
     )
 
-    if selected_id:
+    if selected_id is not None:
         st.session_state.selected_ticket = next(
-            t for t in tickets if t["id"] == selected_id
+            (t for t in tickets if t["id"] == selected_id),
+            None
         )
+    # else:
+    #     st.session_state.selected_ticket = None
         
 
 
@@ -242,7 +247,10 @@ def show_ticket_detail(t):
     st.divider()
     st.subheader("📄 Ticket Details")
 
-    st.markdown(f"### 🎫 {t['title']}")
+    if not t:
+        return
+
+    st.markdown(f"🎫 {t['title']}")
     st.caption(f"Ticket ID: {t['id']}")
 
     col1, col2 = st.columns(2)

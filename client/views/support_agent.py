@@ -138,7 +138,7 @@ def render():
                 st.info("No customers found")
 
             for c in customers:
-                with st.expander(f"👤 {c['name']} ({c.get('company', '-')})"):
+                with st.expander(f"{c["id"]} 👤 {c['name']} ({c.get('company', '-')})"):
 
                     # EDIT FORM
                     new_name = st.text_input(

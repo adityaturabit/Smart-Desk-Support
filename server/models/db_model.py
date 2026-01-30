@@ -20,6 +20,7 @@ class User(Base):
     dept_id = Column(Integer,ForeignKey("depts.dept_id"))
     role = Column(Enum("employee","support","team_lead",name="user_roles"),nullable=False)
     department = relationship("Dept", back_populates="users")
+    password_hash = Column(String(255),nullable=False)
 
 # CUSTOMER MODEL AFTER A AGENT LOGS IN
 class Customer(Base):
@@ -47,3 +48,4 @@ class Ticket(Base):
     created_at = Column(DateTime(timezone=True),server_default=func.now())
     updated_at = Column(DateTime(timezone=True),onupdate=func.now())
     deletion_reason = Column(String(500), nullable=True)
+    hubspot_ticket_id = Column(String(50), nullable=True)

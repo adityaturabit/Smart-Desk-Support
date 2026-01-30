@@ -4,11 +4,12 @@ from server.schemas.ticket_schema import TicketResponse, CreateTicket,TicketDele
 # from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from server.algo_services.round_robin import assign_next_agent
-from fastapi import Depends,HTTPException,APIRouter,status
+from fastapi import Depends,HTTPException,APIRouter,status,BackgroundTasks
 # from server.schemas.ticket_summary_schema import EmployeeTicketSummary, SupportTicketSummary,TeamLeadTicketSummary
 from sqlalchemy.sql import func, case
 from server.db_connect.ticket_state import ALLOWED_STATUS_TRANSITIONS
 from pydantic import BaseModel
+# from server.CRM_HUBSPOT.trial import sync_ticket_to_crm
 
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
@@ -40,7 +41,7 @@ def get_ticket(db:Session=Depends(get_db),current_user : User = Depends(get_curr
 #will works when an employee creates a ticket cuz it will auto assign the ticket to an agent using round robin algo
 @router.post("/",response_model=TicketResponse)
 def create_ticket(
-    ticket : CreateTicket, db: Session = Depends(get_db),current_user : User = Depends(get_current_user)
+    ticket : CreateTicket,background_tasks: BackgroundTasks, db: Session = Depends(get_db),current_user : User = Depends(get_current_user)
 ):
     try:
         if current_user.role not in ["employee","support"]:
@@ -84,6 +85,7 @@ def create_ticket(
         db.add(new_ticket)
         db.commit()
         db.flush()
+        # background_tasks.add_task(sync_ticket_to_crm, new_ticket.id)
         return new_ticket
     except Exception as e:
         db.rollback()

@@ -14,18 +14,22 @@ class UserBase(BaseModel):
     role : UserRole
     dept_id : int
     
+    
 
 class UserCreate(UserBase):
     # email : str
     # emp_id : str
     # role : str
+    password : str
     pass 
 
-class UserResponse(UserBase):
-    id : int
-    # name : str
-    # emp_id : str
-    # role : Enum
+class UserResponse(BaseModel):
+    id: int
+    emp_id: str
+    name: str
+    email_id: EmailStr
+    role: str
+    dept_id: int
     
     class Config:
         orm_mode = True

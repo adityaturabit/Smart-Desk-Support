@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from enum import Enum
 from datetime import datetime
@@ -16,7 +16,7 @@ class TicketStatus(str,Enum):
     closed = "closed"
 
 class TicketBase(BaseModel):
-    title : str
+    title : str 
     description : str
     priority : TicketPriority = TicketPriority.medium
 
@@ -35,8 +35,9 @@ class TicketResponse(TicketBase):
     created_at : datetime
     updated_at : Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 class TicketDeleteRequest(BaseModel):
     reason: Optional[str] = None
