@@ -13,6 +13,8 @@ from api_backen.ticket_api import (
 from api_backen.customer_api import get_support_agents, get_customers
 import streamlit as st
 from api_backen.auth_api import register
+from api_backen.ticket_api import get_my_tickets
+
 
 # ---------- CONSTANTS ----------
 PRIORITY_ORDER = {
@@ -43,6 +45,17 @@ def render():
     customers = get_customers().json()
     analytics = get_weekly_analytics().json()
 
+    res = get_my_tickets()
+    tickets = res.json() if res.status_code == 200 else []
+    # st.divider()
+    # -------- KPIs --------
+    col1, col2, col3,col4 = st.columns(4)
+    col1.metric("Open", len([t for t in tickets if t["status"] == "open"]))
+    col2.metric("Pending", len([t for t in tickets if t["status"] == "pending"]))
+    col3.metric("Closed", len([t for t in tickets if t["status"] == "closed"]))
+    col4.metric("Total", len([t for t in tickets ]))
+
+    
     tabs = st.tabs([
         "📋 Tickets",
         "🔁 Assign Tickets",

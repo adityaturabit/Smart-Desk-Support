@@ -38,7 +38,7 @@ class Customer(Base):
 class Ticket(Base):
     __tablename__ = "tickets"
     id = Column(Integer, autoincrement=True,primary_key=True)
-    title =Column(String(40),nullable=False)
+    title =Column(String(250),nullable=False)
     description = Column(String(500),nullable=False)
     priority = Column(Enum("low","medium","high","planned","investigation",name="Ticket Priority"),default="medium",nullable=False)
     status = Column(Enum("open","pending","closed",name="Ticket Status"),default="open",nullable=False)

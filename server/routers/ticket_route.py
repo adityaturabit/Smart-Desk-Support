@@ -9,7 +9,7 @@ from fastapi import Depends,HTTPException,APIRouter,status,BackgroundTasks
 from sqlalchemy.sql import func, case
 from server.db_connect.ticket_state import ALLOWED_STATUS_TRANSITIONS
 from pydantic import BaseModel
-# from server.CRM_HUBSPOT.trial import sync_ticket_to_crm
+from server.CRM_HUBSPOT.trial import sync_ticket_to_crm
 
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
@@ -85,7 +85,7 @@ def create_ticket(
         db.add(new_ticket)
         db.commit()
         db.flush()
-        # background_tasks.add_task(sync_ticket_to_crm, new_ticket.id)
+        background_tasks.add_task(sync_ticket_to_crm, new_ticket.id)
         return new_ticket
     except Exception as e:
         db.rollback()
